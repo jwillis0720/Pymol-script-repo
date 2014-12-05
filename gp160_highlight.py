@@ -24,18 +24,18 @@ class HXBCAlignment():
         self.interest_part = self.best_alignment[0]
         self.score = self.best_alignment[2]
 
-        self.linear_epitopes = [{'V1':range(131,157)},
+        self._epitopes = [{'V1':range(131,157)},
                                   {'V2':range(157,197)},
                                   {'V3':range(296,331)},
                                   {'V4':range(385,419)},
                                   {'V5':range(461,472)},
                                   {'CD4-binding_loop':range(364,375)},
                                   {'Fusion_peptide':range(512,533)},
-                                  {'MPER':range(662,684)}]
-
-        self.bnab_epitope = [{'b12_epitope':[257,280,281,282,364,365,366,367,368,369,370,371,
+                                  {'MPER':range(662,684)},
+                                  {'b12_epitope':[257,280,281,282,364,365,366,367,368,369,370,371,
                                             372,373,384,385,386,417,418,519,530,431,432,455,
                                             456,457,469,472,473,474]}]
+
         self.interest_numbering = interest_numbering
 
     def get_hxbc2(self):
@@ -50,7 +50,7 @@ class HXBCAlignment():
     def get_alignment(self,epitope):
         name = epitope.keys()[0]
         location = epitope.values()[0]
-        self.interest_epitope[name] = []
+        self.interest_epitope[name] = set()
         interest_counter = 0
         hx_counter = 0
         for align_hx_index, align_interest_index in zip(
@@ -60,57 +60,24 @@ class HXBCAlignment():
             if self.hxbc_part[align_hx_index] != "-":
                 hx_counter += 1
 
-            if hx_counter in location and self.interest_part[align_interest_index] != "-":
-                self.interest_epitope[name].append(self.interest_numbering[interest_counter])
-                location.remove(hx_counter)
-
-            if self.interest_part[align_interest_index] != "-":
-                interest_counter += 1
-    
-    def get_bnab_alignment(self,epitope):
-        name = epitope.keys()[0]
-        location = epitope.values()[0]
-        self.bnab_epitope_location[name] = []
-        interest_counter = 0
-        hx_counter = 0
-        for align_hx_index, align_interest_index in zip(
-            range(0,len(self.hxbc_part)),
-            range(0,len(self.interest_part))):
-            
-            if self.hxbc_part[align_hx_index] != "-":
-                hx_counter += 1
-
-            if hx_counter in location and self.interest_part[align_interest_index] != "-":
-                self.bnab_epitope_location[name].append(self.interest_numbering[interest_counter])
-                location.remove(hx_counter)
-
             if self.interest_part[align_interest_index] != "-":
                 interest_counter += 1
 
-    def match_linear_epitopes(self):
+            if hx_counter in location:
+                self.interest_epitope[name].add(self.interest_numbering[interest_counter])
+
+
+    def match_epitopes(self):
         self.interest_epitope = {}
-        for epitope in self.linear_epitopes:
+        for epitope in self._epitopes:
             self.get_alignment(epitope)
-
-    def match_bnab_epitopes(self):
-        self.bnab_epitope_location = {}
-        for epitope in self.bnab_epitope:
-            self.get_bnab_alignment(epitope)
-    
-    def make_objects_linear(self,chain):
-        for epitope in self.interest_epitope:
-            if self.interest_epitope[epitope]:
-                name = epitope
-                min_ = min(self.interest_epitope[epitope])
-                max_ = max(self.interest_epitope[epitope])
-                cmd.select("{}_{}".format(chain.lower(),name),"chain {} and resi {}-{}".format(chain,min_,max_))
-                cmd.group("chain_{}".format(chain),"{}_*".format(chain.lower()))
+  
 
     def make_objects(self,chain):
-        for epitope in self.bnab_epitope_location:
-            if self.bnab_epitope_location[epitope]:
+        for epitope in self.interest_epitope:
+             if self.interest_epitope[epitope]:
                 name = epitope
-                selection = ",".join(str(x) for x in self.bnab_epitope_location[epitope])
+                selection = ",".join(str(x) for x in self.interest_epitope[epitope])
                 cmd.select("{}_{}".format(chain.lower(),name),"chain {} and resi {}".format(chain,selection))
                 cmd.group("chain_{}".format(chain),"{}_*".format(chain.lower()))
 
@@ -121,9 +88,7 @@ def align(key_value_pairing,chain,ascutoff):
     if pw:
         alignment = HXBCAlignment(pw,key_value_pairing.keys())
         if alignment.get_score() > ascutoff:
-            alignment.match_linear_epitopes()
-            alignment.match_bnab_epitopes()
-            alignment.make_objects_linear(chain)
+            alignment.match_epitopes()
             alignment.make_objects(chain)
 
 def get_sane_pairing(pairing):
