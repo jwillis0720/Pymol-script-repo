@@ -112,7 +112,6 @@ def align(key_value_pairing,chain,ascutoff):
     
     if pw_gp41:
         alignment = HXBCAlignment(pw_gp41,key_value_pairing.keys())
-     
         if alignment.get_score() > 550:
             alignment.match_epitopes(epi="gp41")
             alignment.make_objects(chain)
